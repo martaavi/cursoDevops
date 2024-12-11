@@ -1,0 +1,77 @@
+pipeline {
+    agent any
+    stages {
+        stage('Hola') {
+            steps {
+                echo "Este es mi primer proyecto"
+                    sh 'whoami'
+            }
+        }
+        stage('Repo') {
+            steps {
+                script{
+                    git branch: 'master',
+                    credentialsId:'Jenkins_cursoDevops',
+                    url:'https://github.com/martaavi/cursoDevops.git'
+                    //bat 'git clone https://github.com/martaavi/cursoDevops.git'
+                    sh 'whoami'
+                }
+            }
+        }
+        stage('Contenido') {
+            steps {
+                echo "Listame todo lo que contiene el directorio"
+                bat 'dir'
+                sh 'whoami'
+            }
+        }
+        stage('Workspace') {
+            steps {
+                bat '''
+                set PYTHONPATH=%WORKSPACE%
+                pytest --junitxml=result-rest.xml test\\unit
+                '''
+                 sh 'whoami'
+            }
+        }
+        stage('Tests') {
+            parallel {
+                stage('Flask') {
+                    agent { label 'agent1' }
+                    steps {
+                        catchError(buildResult: 'UNSTABLE', stageResult: 'FAILURE') {
+                            bat '''
+                            set FLASK_APP=app\\api.py
+                            start flask run
+                            set PYTHONPATH=%WORKSPACE%
+                            pytest --junitxml=result-rest.xml test\\unit
+                            '''
+                            sh 'whoami'
+                        }
+                    }
+                }
+                stage('WireMock') {
+                    agent { label 'agent2' }
+                    steps {
+                        catchError(buildResult: 'UNSTABLE', stageResult: 'FAILURE') {
+                            bat 'start java -jar C:/Users/marta/Documents/devops/wiremock-standalone-3.10.0.jar --port 9090 --root-dir C:/Users/marta/Documents/devops/wiremock'
+                            sleep 5
+                            bat 'pytest --junitxml=result-rest.xml test\\unit'
+                            sh 'whoami'
+                        }
+                    }
+                }
+            }
+        }
+        stage('Results') {
+            steps {
+                catchError(buildResult: 'UNSTABLE', stageResult: 'FAILURE') {
+                    junit 'result-*.xml'
+                    sh 'whoami'
+                }
+            }
+        }
+
+    }
+}
+
