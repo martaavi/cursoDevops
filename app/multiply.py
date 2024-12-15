@@ -6,7 +6,7 @@ class InvalidPermissions(Exception):
 
 
 class Calculator:
-    def multiply(self, x, y):
+    def add(self, x, y):
         self.check_types(x, y)
         return x * y
 
@@ -17,5 +17,5 @@ class Calculator:
 
 if __name__ == "__main__":  # pragma: no cover
     calc = Calculator()
-    result = calc.add(2, 2)
+    result = calc.add(4, 2)
     print(result)
