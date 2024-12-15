@@ -5,11 +5,11 @@ class InvalidPermissions(Exception):
     pass
 
 class Calculator:
-    def add(self, x, y):
+    def divide(self, x, y):
         self.check_types(x, y)
         return x / y  # suma
         
-    def divide(self, x, y):
+    def check(self, x, y):
         self.check_types(x, y)
         if y == 0:
             raise ValueError("ERROR HTTP 406")  # Cambié TypeError a ValueError
@@ -21,5 +21,5 @@ class Calculator:
 
 if __name__ == "__main__":  # testeo que sin las barras bajas no de error
     calc = Calculator()
-    result = calc.add(4, 0)
+    result = calc.divide(4, 0)
     print(result)
