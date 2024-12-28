@@ -44,7 +44,11 @@ def add(op_1, op_2):
 def add(op_1, op_2):
     try:
         num_1, num_2 = util.convert_to_number(op_1), util.convert_to_number(op_2)
-        return ("{}".format(CALCULATOR.divide(num_1, num_2)), http.client.OK, HEADERS)
+
+        if num_2 == 0:
+            return ("", 406, HEADERS) 
+        else
+            return ("{}".format(CALCULATOR.divide(num_1, num_2)), http.client.OK, HEADERS)
     except TypeError as e:
         return (str(e), http.client.BAD_REQUEST, HEADERS)
 
