@@ -17,7 +17,7 @@ pipeline {
             }
         }
         
-         stage('Tests') {
+        stage('Tests') {
             parallel {
                 stage('Unit') {
                     steps {
@@ -52,6 +52,7 @@ pipeline {
              steps{
                  junit 'result*.xml'
              }
-         }
+        }
+            
     }
 }
