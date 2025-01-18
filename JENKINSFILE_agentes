@@ -48,7 +48,7 @@ pipeline {
                             
                             ping -n 10 127.0.0.1
                             
-                            python -m pytest --junitxml=result-unit.xml test\\unit
+                            python -m pytest --junitxml=result-unit.xml test\\rest
                             '''
                         }
                         stash name: 'rest-res', includes: 'result-unit.xml'
