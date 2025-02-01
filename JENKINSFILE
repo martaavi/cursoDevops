@@ -7,7 +7,7 @@ pipeline {
                 // Obtener código del repo
                 git 'https://github.com/martaavi/cursoDevops.git'
                 bat 'dir'
-                echo WORKSPACE
+                echo "Workspace directory: ${env.WORKSPACE}"
             }
         }
         
@@ -18,9 +18,27 @@ pipeline {
                         set PYTHONPATH=.
                         python -m pytest --junitxml=result-unit.xml test\\unit
                     '''
-                    junit 'result*.xml'
+                    junit 'result-unit.xml'
                 }
             }
+        }
+        
+        stage('Rest') {
+                    steps {
+                        catchError(buildResult: 'UNSTABLE', stageResult: 'FAILURE') {
+                            bat '''
+                                set FLASK_APP=app\\api.py
+                                start flask run
+                                start java -jar C:\\Users\\marta\\Documents\\devops\\wiremock-standalone-3.10.0.jar --port 9090 --root-dir test\\wiremock
+                                
+                                ping -n 10 127.0.0.1
+                                
+                                pytest --junitxml=result-rest.xml test\\rest
+                            '''
+                        }
+                    }
+                
+            
         }
         
         stage('Coverage') {
@@ -30,7 +48,7 @@ pipeline {
                     coverage xml
                 '''
                 catchError(buildResult: 'UNSTABLE', stageResult: 'FAILURE'){
-                    cobertura coberturaReportFile: 'coverage.xml', conditionalCoverageTargets: '80:90', lineCoverageTargets: '85:95'
+                    cobertura autoUpdateHealth: false, autoUpdateStability: false, coberturaReportFile: 'coverage.xml', conditionalCoverageTargets: '100, 0, 85', failUnhealthy: false, failUnstable: false, lineCoverageTargets: '100, 0, 80', maxNumberOfBuilds: 0, onlyStable: false, zoomCoverageChart: false
                 }
             }
         }
