@@ -1,68 +1,112 @@
 pipeline {
-    agent any
+    agent none  
 
     stages {
         stage('Get Code') {
+            agent { label 'principal' }
             steps {
-                // Obtener código del repo
                 git 'https://github.com/martaavi/cursoDevops.git'
                 bat 'dir'
-                echo WORKSPACE
-                stash name: 'code', includes:'**'
+                echo "Workspace: ${env.WORKSPACE}"
+                bat 'whoami && hostname'
+                //unstash 'coverage-results'
             }
         }
-        
-        stage('Build') {
-            steps {
-                echo 'Eyyy, esto es Python. No hay que compilar nada!!!'
-            }
-        }
-        
-         stage('Tests') 
-         {
-            parallel 
-            {
+
+        stage('Ejecucion en paralelo') {
+            parallel {
                 stage('Unit') {
-                    agent {label 'agent1'}
+                    agent { label 'agent1' }
                     steps {
-                        catchError(buildResult: 'UNSTABLE', stageResult: 'FAILURE'){
-                        unstash name: 'code'
-                        bat '''
-                            set PYTHONPATH=.
-                            python -m pytest --junitxml=result-unit.xml test\\unit
+                        echo "Soy el agente: ${env.NODE_NAME}"
+                        bat 'whoami && hostname'
+                        echo "Workspace: ${env.WORKSPACE}"
+                        catchError(buildResult: 'UNSTABLE', stageResult: 'FAILURE') {
+                            bat '''
+                                set PYTHONPATH=.
+                                python -m pytest --junitxml=result-unit.xml test\\unit
                             '''
-                        stash name: 'unit-res', includes: 'result-unit.xml'
+                            junit 'result-unit.xml'
                         }
                     }
                 }
-                
+
                 stage('Rest') {
-                    agent {label 'agent2'}
+                    agent { label 'agent2' }
                     steps {
-                        catchError(buildResult: 'UNSTABLE', stageResult: 'FAILURE'){
-                        unstash name: 'code'
+                        bat 'whoami && hostname'
+                        echo "Workspace: ${env.WORKSPACE}"
+                        catchError(buildResult: 'UNSTABLE', stageResult: 'FAILURE') {
+                            bat '''
+                                set FLASK_APP=app\\api.py
+                                start flask run
+                                start java -jar C:\\Users\\marta\\Documents\\devops\\wiremock-standalone-3.10.0.jar --port 9090 --root-dir test\\wiremock
+                                
+                                ping -n 10 127.0.0.1
+                                
+                                python -m pytest --junitxml=result-rest.xml test\\rest
+                            '''
+                        }
+                    }
+                }
+
+                stage('Coverage') {
+                    agent { label 'agent3' }
+                    steps {
+                        bat 'whoami && hostname'
+                        echo "Workspace: ${env.WORKSPACE}"
+                        
+                        bat '''
+                            coverage run --branch --source=app --omit=app\\__init__.py,app\\api.py python -m pytest test\\unit
+                            coverage xml
+                        '''
+                            //catchError(buildResult: 'UNSTABLE', stageResult: 'FAILURE') {
+                            //cobertura autoUpdateHealth: false, autoUpdateStability: false, coberturaReportFile: 'coverage.xml', conditionalCoverageTargets: '100, 0, 85', failUnhealthy: false, failUnstable: false, lineCoverageTargets: '100, 0, 95', maxNumberOfBuilds: 0, onlyStable: false, zoomCoverageChart: false
+                            stash includes: 'coverage.xml', name: 'coverage-results'
+                                
+                            //}
+                    }
+                }
+
+                stage('Security') {
+                    agent { label 'agent1' }
+                    steps {
+                        bat 'whoami && hostname'
+                        echo "Workspace: ${env.WORKSPACE}"
+                        bat '''
+                            bandit --exit-zero -r . -f custom -o bandit.out --msg-template "{abspath}:{line}: [{test_id}] {msg}"
+                        '''
+                        recordIssues tools: [pyLint(name: 'Bandit', pattern: 'bandit.out')], qualityGates: [[threshold: 2, type: 'TOTAL', unstable: true], [threshold: 4, type: 'TOTAL', unstable: false]]
+                    }
+                }
+
+                stage('Static') {
+                    agent { label 'agent2' }
+                    steps {
+                        bat 'whoami && hostname'
+                        echo "Workspace: ${env.WORKSPACE}"
+                        bat '''
+                            flake8 --exit-zero --format=pylint app >flake8.out
+                        '''
+                        recordIssues tools: [flake8(name: 'Flake8', pattern: 'flake8.out')], qualityGates: [[threshold: 8, type: 'TOTAL', unstable: true], [threshold: 10, type: 'TOTAL', unstable: false]]
+                    }
+                }
+
+                stage('Performance') {
+                    agent { label 'agent3' }
+                    steps {
+                        bat 'whoami && hostname'
+                        echo "Workspace: ${env.WORKSPACE}"
                         bat '''
                             set FLASK_APP=app\\api.py
                             start flask run
-                            start java -jar C:\\Users\\marta\\Documents\\devops\\wiremock-standalone-3.10.0.jar --port 9090 --root-dir test\\wiremock
-                            
-                            ping -n 10 127.0.0.1
-                            
-                            python -m pytest --junitxml=result-unit.xml test\\rest
-                            '''
-                        }
-                        stash name: 'rest-res', includes: 'result-unit.xml'
+                            C:\\Users\\marta\\Downloads\\apache-jmeter-5.6.3\\bin\\jmeter -n -t test\\jmeter\\flask.jmx -f -l flask.jtl
+                        '''
+                        perfReport sourceDataFiles: 'flask.jtl'
                     }
                 }
-            }
-         }
-         
-         stage ('Results'){
-             steps{
-                 unstash name:'unit-res'
-                 unstash name: 'rest-res'
-                 junit 'result*.xml'
-             }
-         }
+            }  
+            
+        }
     }
 }
